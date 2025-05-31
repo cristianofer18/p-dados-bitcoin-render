@@ -1,6 +1,10 @@
 import requests
 from datetime import datetime
 from tinydb import TinyDB
+from dotenv import load_dotenv
+import os
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 #url = 'https://api.coinpaprika.com/v1/tickers/btc-bitcoin'
 #url = 'https://api.coinpaprika.com/v1/tickers/bnb-binance-coin'
@@ -9,6 +13,34 @@ from tinydb import TinyDB
 #url = 'https://api.coinpaprika.com/v1/tickers/ada-cardano'
 #url = 'https://api.coinpaprika.com/v1/tickers/xrp-xrp'
 #url = 'https://api.coinpaprika.com/v1/tickers/doge-dogecoin'
+
+# Importar Base e BitcoinPreco do database.py
+from database import Base, BitcoinPreco
+
+# Carrega variáveis de ambiente do arquivo .env
+load_dotenv()
+
+# Lê as variáveis separadas do arquivo .env (sem SSL)
+POSTGRES_USER = os.getenv("POSTGRES_USER")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
+POSTGRES_HOST = os.getenv("POSTGRES_HOST")
+POSTGRES_PORT = os.getenv("POSTGRES_PORT")
+POSTGRES_DB = os.getenv("POSTGRES_DB")
+
+# Monta a URL de conexão ao banco PostgreSQL (sem SSL)
+DATABASE_URL = (
+    f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}"
+    f"@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+)
+
+# Cria o engine e a sessão
+engine = create_engine(DATABASE_URL)
+Session = sessionmaker(bind=engine)
+
+def criar_tabela():
+    """Cria a tabela no banco de dados, se não existir."""
+    Base.metadata.create_all(engine)
+    
 
 def get_bitcoin_price_coinbase():
     url = 'https://api.coinbase.com/v2/prices/BTC-USD/spot'
@@ -34,13 +66,13 @@ def get_bitcoin_price_coinpaprika():
     return data['data']
 
 def tratar_dados(data):
-    criptomeda = data['base']
+    criptomoeda = data['base']
     valor = float(data['amount'])
     moeda = data['currency']
     data_hora = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     dados_result = {
-        'criptomeda': criptomeda,
+        'criptomoeda': criptomoeda,
         'valor': valor,
         'moeda': moeda,
         'data_hora': data_hora
@@ -53,12 +85,42 @@ def salvar_dados_tinydb(data, db_name='dados_bitcoin.json'):
     db.insert(data)
     print(f"Dados salvos em {db_name}")
 
-if __name__ == "__main__":
-    data = get_bitcoin_price_coinbase()
-    dados_tratados = tratar_dados(data)
 
-    # Salvar no TinyDB
-    salvar_dados_tinydb(dados_tratados)   
+def salvar_dados_postgres(data):
+    session = Session()
+    novo_registro = BitcoinPreco(**data)
+    session.add(novo_registro)
+    session.commit()
+    session.close()
+    print("Dados salvos no PostgreSQL")
+
+
+if __name__ == "__main__":
+
+    criar_tabela()
+
+    try:
+        data = get_bitcoin_price_coinbase()
+        if data:
+            dados_tratados = tratar_dados(data)   
+            
+            # Salvar no TinyDB
+            # salvar_dados_tinydb(dados_tratados)   
+
+            # Salvar no PostgreSQL
+            salvar_dados_postgres(dados_tratados)            
+            
+    except KeyboardInterrupt:           
+        print("Processo interrompido pelo usuário. Finalizando...")        
+    except Exception as e:
+        print(f"Erro durante a execução: {e}")
+        
+
+
+ 
+    
+
+   
 
 
 
