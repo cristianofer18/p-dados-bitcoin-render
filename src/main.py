@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+import time
 
 #url = 'https://api.coinpaprika.com/v1/tickers/btc-bitcoin'
 #url = 'https://api.coinpaprika.com/v1/tickers/bnb-binance-coin'
@@ -94,26 +95,34 @@ def salvar_dados_postgres(data):
     session.close()
     print("Dados salvos no PostgreSQL")
 
+def pipeline_dados():
+    data = get_bitcoin_price_coinbase()
+    
+    if data:
+        dados_tratados = tratar_dados(data)   
+                
+        # Salvar no TinyDB
+        # salvar_dados_tinydb(dados_tratados)   
+
+        # Salvar no PostgreSQL
+        salvar_dados_postgres(dados_tratados)   
+
 
 if __name__ == "__main__":
 
     criar_tabela()
 
-    try:
-        data = get_bitcoin_price_coinbase()
-        if data:
-            dados_tratados = tratar_dados(data)   
-            
-            # Salvar no TinyDB
-            # salvar_dados_tinydb(dados_tratados)   
+    while True:
 
-            # Salvar no PostgreSQL
-            salvar_dados_postgres(dados_tratados)            
-            
-    except KeyboardInterrupt:           
-        print("Processo interrompido pelo usuário. Finalizando...")        
-    except Exception as e:
-        print(f"Erro durante a execução: {e}")
+        try:
+            pipeline_dados() 
+            time.sleep(15)
+        except KeyboardInterrupt:           
+            print("Processo interrompido pelo usuário. Finalizando...")   
+            break     
+        except Exception as e:
+            print(f"Erro durante a execução: {e}")
+            time.sleep(15)
         
 
 
