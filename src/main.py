@@ -21,6 +21,8 @@ from database import Base, BitcoinPreco
 # Carrega variáveis de ambiente do arquivo .env
 load_dotenv()
 
+LOOP_MINUTES = 40
+
 # Lê as variáveis separadas do arquivo .env (sem SSL)
 POSTGRES_USER = os.getenv("POSTGRES_USER")
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
@@ -116,13 +118,15 @@ if __name__ == "__main__":
 
         try:
             pipeline_dados() 
-            time.sleep(15)
+            time.sleep(LOOP_MINUTES)
         except KeyboardInterrupt:           
             print("Processo interrompido pelo usuário. Finalizando...")   
             break     
         except Exception as e:
             print(f"Erro durante a execução: {e}")
-            time.sleep(15)
+            time.sleep(LOOP_MINUTES)    
+        
+
         
 
 
